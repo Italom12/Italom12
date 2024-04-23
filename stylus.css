@@ -1,0 +1,70 @@
+/* Reset CSS */
+* {
+  margin: 150; 
+  padding: 150;
+  box-sizing: border-box;
+}
+
+/* Estilos gerais */
+body {
+  font-family: Arial, sans-serif;
+  line-height: 1.6;
+  background-color: #d3d3d3;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.container {
+  width: 100%;
+  height: 100%;
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+/* Estilos para o formulário */
+form {
+  margin-bottom: 20px;
+}
+
+label {
+  display: block;
+  margin-bottom: 0px;
+}
+
+textarea {
+  width: calc(100% - 20px); /* Ajuste para a margem interna */
+  padding: 10px;
+  margin-bottom: 1px;
+  border: 1px solid #000000;
+  border-radius: 5px;
+  resize: vertical;
+}
+
+input[type="file"] {
+  display: block;
+  margin-bottom: 10px;
+}
+
+button {
+  display: block;
+  width: calc(100% - 20px); /* Ajuste para a margem interna */
+  padding: 10px;
+  background-color: #057c15;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
