@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Eletrovia</title>
+<link rel="stylesheet" href="lib/leaflet.css">
+<link rel="stylesheet" href="lib/MarkerCluster.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ MAPA ============ -->
+  <div id="map" aria-label="Mapa de carregadores"></div>
+  <div id="crosshair" class="hidden" aria-hidden="true"></div>
+
+  <header class="top" id="top">
+    <div class="search">
+      <svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+      <input id="q" type="search" placeholder="Buscar cidade, posto ou operadora" autocomplete="off" enterkeyhint="search">
+      <button id="qClear" class="icon-btn hidden" aria-label="Limpar busca">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+      <button id="filterBtn" class="icon-btn" aria-label="Filtros">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+        <span id="filterDot" class="dot hidden"></span>
+      </button>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div id="results" class="results hidden"></div>
+  </header>
+
+  <div class="map-ui" id="mapUi">
+    <div class="counter" id="counter"><span class="mono">—</span></div>
+    <button id="areaBtn" class="pill hidden">
+      <svg class="ico" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v4h-4"/></svg>
+      Atualizar esta área
+    </button>
+    <div class="fabs">
+      <button id="addBtn" class="fab" aria-label="Adicionar carregador">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+      <button id="locBtn" class="fab" aria-label="Minha localização">
+        <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="7.5"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="placeBar" class="place-bar hidden">
+    <div>
+      <div class="label">NOVO CARREGADOR</div>
+      <div class="place-hint">Mova o mapa até o local exato</div>
+    </div>
+    <div class="row-btns">
+      <button class="btn ghost" id="placeCancel">Cancelar</button>
+      <button class="btn primary" id="placeOk">Confirmar</button>
+    </div>
+  </div>
+
+  <!-- ============ ABAS ============ -->
+  <section class="view hidden" id="view-near">
+    <div class="view-head">
+      <div>
+        <div class="label" id="nearFrom">PERTO DE VOCÊ</div>
+        <h1>Mais próximos</h1>
+      </div>
+      <button class="btn ghost small" id="nearLocate">Usar GPS</button>
+    </div>
+    <div class="seg" id="nearSeg">
+      <button data-v="all" class="on">Todos</button>
+      <button data-v="fast">Rápidos</button>
+      <button data-v="free">Gratuitos</button>
+    </div>
+    <div id="nearList" class="list"></div>
+  </section>
+
+  <section class="view hidden" id="view-stats">
+    <div class="view-head">
+      <div>
+        <div class="label" id="statsSub">PAINEL</div>
+        <h1>Rede de recarga</h1>
+      </div>
+    </div>
+    <div id="statsBody"></div>
+  </section>
+
+  <section class="view hidden" id="view-saved">
+    <div class="view-head">
+      <div>
+        <div class="label">SALVOS & CONTRIBUIÇÕES</div>
+        <h1>Seus pontos</h1>
+      </div>
+    </div>
+    <div id="savedBody"></div>
+  </section>
+
+  <nav class="tabbar" id="tabbar">
+    <button data-tab="map" class="on">
+      <svg class="ico" viewBox="0 0 24 24"><path d="M9 4L3 6.5v13L9 17l6 2.5 6-2.5V4l-6 2.5z"/><path d="M9 4v13M15 6.5v13"/></svg>
+      <span>Mapa</span>
+    </button>
+    <button data-tab="near">
+      <svg class="ico" viewBox="0 0 24 24"><path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></svg>
+      <span>Perto</span>
+    </button>
+    <button data-tab="stats">
+      <svg class="ico" viewBox="0 0 24 24"><path d="M3 17c3-9 6-9 9-4s6 5 9-4"/><path d="M3 21h18"/></svg>
+      <span>Painel</span>
+    </button>
+    <button data-tab="saved">
+      <svg class="ico" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/></svg>
+      <span>Salvos</span>
+    </button>
+  </nav>
+
+  <!-- ============ FOLHAS ============ -->
+  <div id="backdrop" class="backdrop"></div>
+
+  <div class="sheet" id="stationSheet" role="dialog" aria-modal="true">
+    <div class="grab"></div>
+    <div class="sheet-body" id="stationBody"></div>
+  </div>
+
+  <div class="sheet" id="filterSheet" role="dialog" aria-modal="true">
+    <div class="grab"></div>
+    <div class="sheet-body">
+      <div class="sheet-title">
+        <div>
+          <div class="label">FILTROS</div>
+          <h2>O que mostrar no mapa</h2>
+        </div>
+        <button class="btn ghost small" id="fReset">Limpar</button>
+      </div>
+
+      <div class="fgroup">
+        <div class="label">POTÊNCIA</div>
+        <div class="toggles" id="fClass"></div>
+      </div>
+      <div class="fgroup">
+        <div class="label">CONECTOR</div>
+        <div class="toggles" id="fConn"></div>
+      </div>
+      <div class="fgroup">
+        <div class="label">POTÊNCIA MÍNIMA · <span id="fKwVal" class="mono">qualquer</span></div>
+        <input type="range" id="fKw" min="0" max="7" step="1" value="0">
+        <div class="range-ticks mono"><span>0</span><span>7</span><span>11</span><span>22</span><span>50</span><span>100</span><span>150</span><span>250</span></div>
+      </div>
+      <div class="fgroup">
+        <div class="label">OPERADORA</div>
+        <select id="fOp"></select>
+      </div>
+      <div class="fgroup switches">
+        <label class="switch"><input type="checkbox" id="fFree"><span></span>Somente gratuitos</label>
+        <label class="switch"><input type="checkbox" id="f24"><span></span>Abertos 24 horas</label>
+        <label class="switch"><input type="checkbox" id="fPublic" checked><span></span>Ocultar privados</label>
+      </div>
+      <button class="btn primary block" id="fApply">Mostrar <span id="fCount" class="mono">0</span> carregadores</button>
+    </div>
+  </div>
+
+  <div class="sheet" id="addSheet" role="dialog" aria-modal="true">
+    <div class="grab"></div>
+    <div class="sheet-body">
+      <div class="sheet-title">
+        <div>
+          <div class="label" id="addCoords">NOVO CARREGADOR</div>
+          <h2>Adicionar ao mapa</h2>
+        </div>
+      </div>
+      <form id="addForm" autocomplete="off">
+        <label class="field"><span class="label">NOME DO LOCAL</span>
+          <input name="n" required maxlength="80" placeholder="Ex.: Shopping Centro – estacionamento G2"></label>
+        <label class="field"><span class="label">OPERADORA / REDE</span>
+          <input name="op" list="opList" maxlength="60" placeholder="Ex.: Tupi, VAPT, Shell Recharge">
+          <datalist id="opList"></datalist></label>
+        <div class="field"><span class="label">CONECTORES</span>
+          <div class="toggles" id="addConn"></div></div>
+        <div class="grid2">
+          <label class="field"><span class="label">POTÊNCIA (kW)</span>
+            <input name="p" type="number" inputmode="decimal" min="1" max="1000" step="0.1" placeholder="22"></label>
+          <label class="field"><span class="label">VAGAS</span>
+            <input name="q" type="number" inputmode="numeric" min="1" max="100" placeholder="2"></label>
+        </div>
+        <label class="field"><span class="label">HORÁRIO</span>
+          <input name="h" maxlength="60" placeholder="Ex.: 24/7 ou Seg–Sáb 8h–22h"></label>
+        <div class="field switches">
+          <label class="switch"><input type="checkbox" name="free"><span></span>Gratuito</label>
+        </div>
+        <label class="field"><span class="label">OBSERVAÇÕES</span>
+          <textarea name="d" rows="2" maxlength="200" placeholder="Como chegar, cartão/app necessário, etc."></textarea></label>
+        <div class="row-btns">
+          <button type="button" class="btn ghost" id="addCancel">Cancelar</button>
+          <button type="submit" class="btn primary">Salvar carregador</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="sheet" id="aboutSheet" role="dialog" aria-modal="true">
+    <div class="grab"></div>
+    <div class="sheet-body" id="aboutBody"></div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+</div>
+
+<script src="lib/leaflet.js"></script>
+<script src="lib/leaflet.markercluster.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

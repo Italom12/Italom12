@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- arco com gradiente (mesma paleta do app) -->
+    <path android:strokeWidth="5" android:strokeLineCap="round" android:fillColor="#00000000"
+        android:pathData="M30,66 C40,34 68,34 78,66">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear" android:startX="30" android:startY="0" android:endX="78" android:endY="0">
+                <item android:offset="0" android:color="#FF5AA9FF" />
+                <item android:offset="0.5" android:color="#FF5EE6A0" />
+                <item android:offset="1" android:color="#FFF5C84C" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- raio -->
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M57,40 L45,58 L53,58 L50,72 L63,52 L55,52 Z" />
+</vector>
