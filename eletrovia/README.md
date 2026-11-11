@@ -2,7 +2,7 @@
 
 App Android de mapa de carregadores para carros elétricos, no estilo PlugShare.
 
-**APK pronto:** [`../apk/Eletrovia-1.0.0.apk`](../apk/Eletrovia-1.0.0.apk). Baixe no celular, permita
+**APK pronto:** [`../apk/Eletrovia-1.1.0.apk`](../apk/Eletrovia-1.1.0.apk). Baixe no celular, permita
 "instalar apps desconhecidos" e abra o arquivo.
 
 ## O que tem
@@ -19,9 +19,14 @@ App Android de mapa de carregadores para carros elétricos, no estilo PlugShare.
 - "Atualizar esta área": busca pontos novos na região visível.
 
 ## De onde vêm os dados
+O app já vem com **1.509 carregadores no Brasil**: 1.146 do Open Charge Map (incluindo Tupi, VAPT,
+EZVolt, Zletric, EDP, Enel X…) + 363 do OpenStreetMap, sem duplicatas.
+Para regerar, veja `tools/merge_ocm.py`.
+
 - **OpenStreetMap** (ODbL): snapshot do Brasil empacotado no app (`data/stations.json`)
   e atualização por área via Overpass. Ainda é pouco no Brasil (~400 pontos).
-- **Open Charge Map** (CC BY 4.0): é o que enche o mapa. Crie uma chave grátis em
+- **Open Charge Map** (CC BY 4.0 / CC0): export público em github.com/openchargemap/ocm-export,
+  empacotado no app. Opcional: para receber pontos novos direto no celular, crie uma chave grátis em
   openchargemap.org → *My Profile → My Apps → Register an application*, e cole em
   **Salvos → Sobre o app** (ou no chip "+ Mais carregadores"). O app baixa o Brasil inteiro
   e guarda no aparelho, atualizando uma vez por semana.

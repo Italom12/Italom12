@@ -11,8 +11,8 @@ android {
         applicationId = "com.italom.eletrovia"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
     }
 
     // A chave de assinatura NÃO fica no repositório (ele é público). Coloque o arquivo

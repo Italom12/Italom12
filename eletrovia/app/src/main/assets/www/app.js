@@ -236,7 +236,7 @@ else map.setView([-15.8, -50.5], 4);
 // mapa base escuro sem chave de API: Esri Dark Gray Canvas (fundo + rótulos)
 L.tileLayer(ESRI + 'World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
   maxZoom: 19, maxNativeZoom: 16, className: 'base-tiles',
-  attribution: '© Esri · © OpenStreetMap',
+  attribution: '© Esri · © OpenStreetMap · Open Charge Map',
 }).addTo(map);
 L.tileLayer(ESRI + 'World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
   maxZoom: 19, maxNativeZoom: 16, pane: 'overlayPane',
@@ -402,7 +402,7 @@ function renderChips() {
   el.innerHTML = QUICK.map((q) => {
     const on = q.conn ? S.f.conn.includes(q.id) : q.on();
     return `<button class="chip${on ? ' on' : ''}" data-q="${q.id}" style="--cc:${q.c}"><i></i>${q.l}</button>`;
-  }).join('') + (store.get('ocmKey', '') ? '' : '<button class="chip" data-q="more" style="--cc:var(--pink)"><i></i>+ Mais carregadores</button>') + (S.f.op ? `<button class="chip on" data-q="op" style="--cc:var(--text)"><i></i>${esc(opLabel(S.f.op))} ✕</button>` : '');
+  }).join('') + (store.get('ocmKey', '') ? '' : '') + (S.f.op ? `<button class="chip on" data-q="op" style="--cc:var(--text)"><i></i>${esc(opLabel(S.f.op))} ✕</button>` : '');
 }
 $('#chips').addEventListener('click', (e) => {
   const b = e.target.closest('.chip');
@@ -997,7 +997,7 @@ function renderStats() {
   const topOps = [...ops].sort((a, b) => b[1] - a[1]).slice(0, 8);
   const maxOp = topOps[0]?.[1] || 1;
   const nCk = Object.values(S.checkins).reduce((a, b) => a + b.length, 0);
-  $('#statsSub').textContent = `DADOS OSM · ${S.generated ? S.generated.split('-').reverse().join('/') : ''}`;
+  $('#statsSub').textContent = `OSM + OPEN CHARGE MAP · ${S.generated ? S.generated.split('-').reverse().join('/') : ''}`;
 
   $('#statsBody').innerHTML = `
     <div class="cards2">
@@ -1069,15 +1069,16 @@ function openAbout() {
     <div class="label">SOBRE</div><h2>Eletrovia 1.0</h2>
     <p>Mapa colaborativo de carregadores para veículos elétricos. ${fmt(S.all.size)} pontos no aparelho
     (snapshot de ${S.generated ? S.generated.split('-').reverse().join('/') : '—'}). Use “Atualizar esta área” no mapa para buscar novidades.</p>
-    <p>Dados de carregadores: © colaboradores do <a href="#" data-url="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, licença ODbL.
+    <p>Dados de carregadores: <a href="#" data-url="https://openchargemap.org">Open Charge Map</a> (CC BY 4.0 / CC0) e
+    © colaboradores do <a href="#" data-url="https://www.openstreetmap.org/copyright">OpenStreetMap</a> (ODbL).
     Mapa base: © Esri, HERE, Garmin e colaboradores do OpenStreetMap. Busca de endereços: Nominatim.</p>
     <p>Pontos adicionados, favoritos e check-ins ficam salvos só neste aparelho. Para que todos vejam um ponto novo,
     cadastre-o também no OpenStreetMap.</p>
     <p>Visual inspirado no estilo “unslop” (CC BY 4.0).</p>
     <div class="card" style="margin-top:16px">
       <div class="label">OPEN CHARGE MAP · ${S.ocm.length ? fmt(S.ocm.length) + ' PONTOS NO APARELHO' : 'DESATIVADO'}</div>
-      <p style="margin:8px 0 12px">Para encher o mapa com milhares de carregadores (Tupi, VAPT, Shell, Zletric e outros),
-      crie uma chave grátis em <a href="#" data-url="https://openchargemap.org/site/developerinfo">openchargemap.org</a>
+      <p style="margin:8px 0 12px">O app já vem com os pontos do Open Charge Map. Para receber pontos novos
+      direto no celular, crie uma chave grátis em <a href="#" data-url="https://openchargemap.org/site/developerinfo">openchargemap.org</a>
       (Minha conta → Meus aplicativos → Registrar) e cole aqui.</p>
       <label class="field" style="margin-bottom:10px"><input id="ocmKey" placeholder="Cole sua chave da API" value="${esc(store.get('ocmKey', ''))}" autocomplete="off" spellcheck="false"></label>
       <button class="btn primary block" id="ocmSave" style="margin-top:0">Salvar e baixar dados</button>
