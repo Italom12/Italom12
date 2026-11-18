@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Meta Driver</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">Meta<span>Driver</span></div>
+  <div class="cycle-chip" id="cycleChip"></div>
+</header>
+
+<main id="view"></main>
+
+<nav class="tabbar">
+  <button data-tab="home" class="active"><span class="ico">🏁</span><span>Início</span></button>
+  <button data-tab="add"><span class="ico">➕</span><span>Lançar</span></button>
+  <button data-tab="fuel"><span class="ico">⛽</span><span>Energia</span></button>
+  <button data-tab="reports"><span class="ico">📊</span><span>Relatórios</span></button>
+  <button data-tab="more"><span class="ico">⚙️</span><span>Mais</span></button>
+</nav>
+
+<div id="modal" class="modal hidden">
+  <div class="sheet">
+    <div class="sheet-head"><h3 id="modalTitle"></h3><button class="x" onclick="closeModal()">✕</button></div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+<div id="toast" class="toast hidden"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

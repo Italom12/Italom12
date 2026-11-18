@@ -1,0 +1,40 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.metadriver.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.metadriver.app'
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+
+    signingConfigs {
+        debug {
+            // Chave fixa (debug padrão, senha pública "android") para que novas versões
+            // do APK possam ser instaladas por cima da anterior sem perder os dados.
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            // Assinado com a chave de debug para gerar um APK instalável sem configuração extra.
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
