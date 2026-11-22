@@ -27,7 +27,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         webView = new WebView(this);
-        webView.setBackgroundColor(0xFF0F172A);
+        webView.setBackgroundColor(0xFF05070B);
         setContentView(webView);
 
         WebSettings s = webView.getSettings();

@@ -227,6 +227,9 @@ let currentTab = 'home';
 let addDate = todayISO();
 let reportPeriod = 'cycle';
 let fuelFilter = '';
+let calMonth = todayISO().slice(0, 7);
+let detailDate = todayISO();
+let detailFrom = 'cal';
 
 function toast(msg) {
   const t = $('#toast');
@@ -244,18 +247,21 @@ $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeM
 
 window.handleBack = function () {
   if (!$('#modal').classList.contains('hidden')) { closeModal(); return true; }
+  if (currentTab === 'day') { go(detailFrom); return true; }
   if (currentTab !== 'home') { go('home'); return true; }
   return false;
 };
 
 function go(tab) {
   currentTab = tab;
-  $$('.tabbar button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  const hl = tab === 'day' ? (detailFrom === 'reports' ? 'reports' : 'cal') : tab;
+  $$('.tabbar button').forEach(b => b.classList.toggle('active', b.dataset.tab === hl));
   render();
   window.scrollTo(0, 0);
 }
 $$('.tabbar button').forEach(b => b.addEventListener('click', () => {
   if (b.dataset.tab === 'add') addDate = todayISO();
+  if (b.dataset.tab === 'cal') calMonth = todayISO().slice(0, 7);
   go(b.dataset.tab);
 }));
 
@@ -263,7 +269,7 @@ function render() {
   const c = currentCycle();
   $('#cycleChip').textContent = `Ciclo ${fmtDate(c.start)} → ${fmtDate(c.end)}`;
   const v = $('#view');
-  ({ home: renderHome, add: renderAdd, fuel: renderFuel, reports: renderReports, more: renderMore }[currentTab])(v);
+  ({ home: renderHome, add: renderAdd, cal: renderCalendar, day: renderDayDetail, fuel: renderFuel, reports: renderReports, more: renderMore }[currentTab])(v);
   if (!DB.setupDone && currentTab === 'home') setupWizard();
 }
 
@@ -363,6 +369,7 @@ function renderHome(v) {
       <div class="small muted">${tStats.net >= todayGoal ? '✅ Meta de hoje alcançada!' : `Faltam ${money(todayGoal - tStats.net)} para a meta de hoje (${money(todayGoal)})`}</div>` : ''}
       ${isWorkDay(today) ? '' : '<div class="hint">Hoje está marcado como folga.</div>'}
       <button class="btn" onclick="addDate=todayISO();go('add')">➕ Lançar ganhos e gastos de hoje</button>
+      <button class="btn sec" onclick="calMonth=todayISO().slice(0,7);go('cal')">📅 Abrir calendário de lançamentos</button>
     </div>
 
     <div class="card">
@@ -396,11 +403,11 @@ function renderAdd(v) {
   const platforms = DB.settings.platforms;
   v.innerHTML = `
     <div class="datebar">
-      <button onclick="shiftAddDate(-1)">‹</button>
-      <input type="date" id="addDate" value="${addDate}" max="${todayISO()}">
-      <button onclick="shiftAddDate(1)">›</button>
+      <button class="arr" onclick="shiftAddDate(-1)">‹</button>
+      <button class="dbtn" onclick="calMonth=addDate.slice(0,7);go('cal')">📅 ${fmtDateLong(addDate)}</button>
+      <button class="arr" onclick="shiftAddDate(1)">›</button>
     </div>
-    <div class="small muted" style="text-align:center;margin:-6px 0 10px">${fmtDateLong(addDate)}${isWorkDay(addDate) ? '' : ' · folga'}</div>
+    ${DB.days[addDate] || exps.length || fuels.length ? `<button class="btn sec" style="margin:-4px 0 12px" onclick="openDay('${addDate}','add')">📋 Ver / editar lançamentos deste dia</button>` : ''}
 
     <div class="card">
       <h2>💰 Ganhos do dia <small>bruto</small></h2>
@@ -442,7 +449,7 @@ function renderAdd(v) {
       ${exps.map(e => {
         const c = EXPENSE_CATS.find(x => x.id === e.cat) || EXPENSE_CATS[EXPENSE_CATS.length - 1];
         return `<div class="item"><div><div class="t">${c.ico} ${c.name}</div><div class="s">${esc(e.note || '')}</div></div>
-          <div class="row"><b class="red">${money(e.amount)}</b><button class="icon-btn" onclick="delExpense('${e.id}')">🗑️</button></div></div>`;
+          <div class="row"><b class="red">${money(e.amount)}</b><button class="icon-btn" onclick="saveDayDraftSilently();editExpense('${e.id}')">✏️</button><button class="icon-btn" onclick="delExpense('${e.id}')">🗑️</button></div></div>`;
       }).join('')}
       ${fuels.map(f => `<div class="item"><div><div class="t">⛽ ${FUEL_TYPES[f.type].name}</div><div class="s">${num(f.qty, 2)} ${FUEL_TYPES[f.type].unit} · lançado em Energia</div></div><b class="red">${money(f.total)}</b></div>`).join('')}
       ${!exps.length && !fuels.length ? '<div class="empty">Nenhum gasto neste dia. Toque numa categoria acima.</div>' : ''}
@@ -460,7 +467,6 @@ function renderAdd(v) {
       ${st.km ? `<div class="hint">R$ ${num(st.gross / st.km, 2)} por km rodado${st.hours ? ` · ${money(st.net / st.hours)} líquido por hora` : ''}${st.trips ? ` · ticket médio ${money(st.gross / st.trips)}` : ''}</div>` : ''}
     </div>
   `;
-  $('#addDate').addEventListener('change', e => { if (e.target.value) { addDate = e.target.value; render(); } });
   const recalc = () => {
     let t = parseNum($('#tips').value);
     $$('.inc').forEach(i => t += parseNum(i.value));
@@ -581,7 +587,7 @@ function renderFuel(v) {
         const t = FUEL_TYPES[f.type];
         return `<div class="item"><div><div class="t">${fmtDate(f.date)} · ${t.name}${f.full ? ' · cheio' : ''}</div>
           <div class="s">${num(f.qty, 2)} ${t.unit} × ${money(f.qty ? f.total / f.qty : 0)}${f.odo ? ' · ' + num(f.odo, 0) + ' km' : ''}${f.place ? ' · ' + esc(f.place) : ''}</div></div>
-          <div class="row"><b>${money(f.total)}</b><button class="icon-btn" onclick="delFuel('${f.id}')">🗑️</button></div></div>`;
+          <div class="row"><b>${money(f.total)}</b><button class="icon-btn" onclick="editFuel('${f.id}')">✏️</button><button class="icon-btn" onclick="delFuel('${f.id}')">🗑️</button></div></div>`;
       }).join('') : '<div class="empty">Nenhum registro ainda.</div>'}
     </div>
   `;
@@ -693,7 +699,7 @@ function renderReports(v) {
     </div>
 
     <div class="card">
-      <h2>Dia a dia <small><span class="green">■</span> líquido <span class="red">■</span> gastos</small></h2>
+      <h2>Dia a dia <small><span class="green">●</span> líquido <span class="red">●</span> gastos</small></h2>
       ${chartDays.length ? chartBars(chartDays.map(d => ({ label: fmtDate(d), gross: (s.daily[d] || {}).gross || 0, exp: (s.daily[d] || {}).exp || 0 }))) : '<div class="empty">Sem dados no período.</div>'}
     </div>
 
@@ -722,7 +728,7 @@ function renderReports(v) {
       <h2>Histórico de dias</h2>
       ${days.length ? days.slice().reverse().map(d => {
         const dd = s.daily[d]; const net = dd.gross - dd.exp; const info = DB.days[d];
-        return `<div class="item" onclick="addDate='${d}';go('add')"><div><div class="t">${fmtDateLong(d)}</div>
+        return `<div class="item" onclick="openDay('${d}','reports')"><div><div class="t">${fmtDateLong(d)}</div>
           <div class="s">Bruto ${money(dd.gross)} · Gastos ${money(dd.exp)}${info && info.km ? ' · ' + num(info.km, 0) + ' km' : ''}${info && info.note ? ' · ' + esc(info.note) : ''}</div></div>
           <b class="${net >= 0 ? 'green' : 'red'}">${money(net)}</b></div>`;
       }).join('') : '<div class="empty">Nada lançado neste período.</div>'}
@@ -755,13 +761,13 @@ function chartBars(data) {
     const net = Math.max(0, d.gross - d.exp);
     const hN = net / max * (H - 30), hE = d.exp / max * (H - 30);
     const w = Math.max(2, bw * 0.38);
-    bars += `<rect x="${x + bw * 0.1}" y="${H - 18 - hN}" width="${w}" height="${hN}" rx="2" fill="#22C55E"/>`;
-    bars += `<rect x="${x + bw * 0.1 + w + 1}" y="${H - 18 - hE}" width="${w}" height="${hE}" rx="2" fill="#F87171"/>`;
+    bars += `<rect x="${x + bw * 0.1}" y="${H - 18 - hN}" width="${w}" height="${hN}" rx="2" fill="#10D9A0"/>`;
+    bars += `<rect x="${x + bw * 0.1 + w + 1}" y="${H - 18 - hE}" width="${w}" height="${hE}" rx="2" fill="#FF5C7A"/>`;
     const step = Math.ceil(data.length / 8);
     if (i % step === 0) bars += `<text x="${x + bw / 2}" y="${H - 4}" font-size="8" fill="#94A3B8" text-anchor="middle">${d.label}</text>`;
   });
   return `<svg class="chart" viewBox="0 0 ${W} ${H}">
-    <line x1="${pad}" y1="${H - 18}" x2="${W}" y2="${H - 18}" stroke="#334155"/>
+    <line x1="${pad}" y1="${H - 18}" x2="${W}" y2="${H - 18}" stroke="rgba(255,255,255,.1)"/>
     <text x="0" y="10" font-size="8" fill="#94A3B8">${money(max).replace(',00', '')}</text>${bars}</svg>`;
 }
 function chartLine(data, unit) {
@@ -772,8 +778,8 @@ function chartLine(data, unit) {
   const y = vv => 10 + (H - 30) * (1 - (vv - min) / ((max - min) || 1));
   const pts = data.map((d, i) => `${x(i)},${y(d.value)}`).join(' ');
   return `<svg class="chart" viewBox="0 0 ${W} ${H}" style="margin-top:10px">
-    <polyline points="${pts}" fill="none" stroke="#22C55E" stroke-width="2"/>
-    ${data.map((d, i) => `<circle cx="${x(i)}" cy="${y(d.value)}" r="3" fill="#22C55E"/>
+    <polyline points="${pts}" fill="none" stroke="#E2BF6A" stroke-width="2"/>
+    ${data.map((d, i) => `<circle cx="${x(i)}" cy="${y(d.value)}" r="3" fill="#E2BF6A"/>
       <text x="${x(i)}" y="${y(d.value) - 6}" font-size="8" fill="#F1F5F9" text-anchor="middle">${num(d.value, 1)}</text>
       <text x="${x(i)}" y="${H - 4}" font-size="8" fill="#94A3B8" text-anchor="middle">${d.label}</text>`).join('')}
   </svg><div class="small muted" style="text-align:center">Consumo (${unit}) por tanque</div>`;
@@ -848,7 +854,7 @@ function renderMore(v) {
       <button class="btn sec" onclick="exportCSV()">📄 Exportar planilha (CSV)</button>
       <button class="btn danger" onclick="resetAll()">Apagar todos os dados</button>
     </div>
-    <div class="small muted" style="text-align:center;margin:8px 0 20px">Meta Driver v1.0 · funciona 100% offline</div>
+    <div class="small muted" style="text-align:center;margin:8px 0 20px">Meta Driver v1.1 · funciona 100% offline</div>
   `;
   const ride = () => {
     const val = parseNum($('#rV').value), km = parseNum($('#rK').value), min = parseNum($('#rM').value);
@@ -1025,6 +1031,215 @@ function resetAll() {
   if (!confirm('Apagar TODOS os dados? Faça um backup antes.')) return;
   if (!confirm('Tem certeza? Essa ação não pode ser desfeita.')) return;
   DB = defaultData(); save(); go('home');
+}
+
+/* ================= CALENDÁRIO ================= */
+const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+const compact = v => { const a = Math.abs(v); const sg = v < 0 ? '-' : '+'; return a >= 1000 ? sg + num(a / 1000, 1) + 'k' : sg + Math.round(a); };
+function dayInfo(iso) {
+  const d = DB.days[iso];
+  const gross = dayGross(d);
+  const exps = DB.expenses.filter(e => e.date === iso);
+  const fuels = DB.fuel.filter(f => f.date === iso);
+  const exp = exps.reduce((t, e) => t + (+e.amount || 0), 0) + fuels.reduce((t, f) => t + (+f.total || 0), 0);
+  return { d, gross, exps, fuels, exp, net: gross - exp, any: !!d || exps.length > 0 || fuels.length > 0 };
+}
+function renderCalendar(v) {
+  const [y, m] = calMonth.split('-').map(Number);
+  const first = new Date(y, m - 1, 1, 12);
+  const lastDay = lastDayOfMonth(y, m - 1);
+  const start = toISO(first), end = `${calMonth}-${pad(lastDay)}`;
+  const st = periodStats(start, end);
+  const today = todayISO();
+  const cyc = currentCycle();
+  const dueDays = new Set(DB.bills.map(b => Math.min(+b.dueDay || 1, lastDay)));
+  const lead = first.getDay();
+  let cells = WEEKDAYS.map(w => `<div class="cal-wd">${w}</div>`).join('');
+  for (let i = 0; i < lead; i++) cells += '<div></div>';
+  let launched = 0;
+  for (let dd = 1; dd <= lastDay; dd++) {
+    const iso = `${calMonth}-${pad(dd)}`;
+    const info = dayInfo(iso);
+    if (info.any) launched++;
+    const cls = ['cal-day'];
+    if (inRange(iso, cyc.start, cyc.end)) cls.push('cyc');
+    if (info.any) cls.push(info.net >= 0 ? 'has' : 'neg');
+    if (iso === today) cls.push('today');
+    if (dueDays.has(dd)) cls.push('due');
+    if (!isWorkDay(iso)) cls.push('off');
+    if (iso > today) cls.push('future');
+    const dots = (info.gross > 0 ? '<i style="background:var(--green)"></i>' : '') +
+      (info.exps.length ? '<i style="background:var(--red)"></i>' : '') +
+      (info.fuels.length ? '<i style="background:var(--gold)"></i>' : '');
+    cells += `<button class="${cls.join(' ')}" onclick="calTap('${iso}')">
+      <span class="n">${dd}</span>
+      ${info.any ? `<span class="v ${info.net >= 0 ? 'green' : 'red'}">${compact(info.net)}</span>` : ''}
+      <span class="dots">${dots}</span></button>`;
+  }
+  const isCur = calMonth === today.slice(0, 7);
+  v.innerHTML = `
+    <div class="card">
+      <div class="cal-head">
+        <button onclick="shiftMonth(-1)">‹</button>
+        <h3>${MONTHS[m - 1]} <span class="muted">${y}</span></h3>
+        <button onclick="shiftMonth(1)">›</button>
+      </div>
+      <div class="cal-grid">${cells}</div>
+      <div class="legend">
+        <span><i style="background:var(--green)"></i>Ganhos</span>
+        <span><i style="background:var(--red)"></i>Gastos</span>
+        <span><i style="background:var(--gold)"></i>Abastecimento</span>
+        <span><i style="background:var(--gold);box-shadow:0 0 6px var(--gold)"></i>Vencimento</span>
+      </div>
+      ${isCur ? '' : '<button class="btn sec" onclick="calMonth=todayISO().slice(0,7);render()">Voltar para o mês atual</button>'}
+    </div>
+    <div class="card">
+      <h2>Resumo de ${MONTHS[m - 1]} <small>${launched} dia(s) com lançamentos</small></h2>
+      <div class="grid3">
+        <div class="stat"><div class="lbl">Bruto</div><div class="val">${money(st.gross)}</div></div>
+        <div class="stat"><div class="lbl">Gastos</div><div class="val red">${money(st.totalExp)}</div></div>
+        <div class="stat"><div class="lbl">Líquido</div><div class="val ${st.net >= 0 ? 'green' : 'red'}">${money(st.net)}</div></div>
+      </div>
+      <div class="grid2" style="margin-top:10px">
+        <div class="stat"><div class="lbl">Dias trabalhados</div><div class="val">${st.workedDays}</div></div>
+        <div class="stat"><div class="lbl">Média líquida/dia</div><div class="val">${st.workedDays ? money(st.net / st.workedDays) : '—'}</div></div>
+      </div>
+      <div class="hint">Toque em um dia para ver, editar ou excluir os lançamentos. Toque em um dia futuro para marcar/desmarcar folga.</div>
+    </div>`;
+}
+function shiftMonth(n) {
+  const [y, m] = calMonth.split('-').map(Number);
+  const d = new Date(y, m - 1 + n, 1, 12);
+  calMonth = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; render();
+}
+function calTap(iso) {
+  if (iso > todayISO()) {
+    const off = DB.daysOff.includes(iso);
+    openModal(fmtDateLong(iso), `
+      <div class="hint" style="font-size:14px">${off ? 'Este dia está marcado como folga planejada.' : 'Dia futuro. Quer marcar como folga? Ele deixa de contar nos dias de trabalho restantes.'}</div>
+      <button class="btn" id="offT">${off ? 'Remover folga' : '🌴 Marcar como folga'}</button>`, b => {
+      $('#offT', b).onclick = () => {
+        DB.daysOff = off ? DB.daysOff.filter(x => x !== iso) : [...DB.daysOff, iso];
+        save(); closeModal(); render();
+      };
+    });
+    return;
+  }
+  openDay(iso, 'cal');
+}
+function openDay(iso, from) { detailDate = iso; detailFrom = from || 'cal'; calMonth = iso.slice(0, 7); go('day'); }
+
+/* ================= LANÇAMENTOS DO DIA ================= */
+function renderDayDetail(v) {
+  const iso = detailDate;
+  const info = dayInfo(iso);
+  const d = info.d;
+  const catOf = id => EXPENSE_CATS.find(x => x.id === id) || EXPENSE_CATS[EXPENSE_CATS.length - 1];
+  const incRows = d ? [
+    ...Object.entries(d.inc || {}).filter(([, val]) => +val).map(([p, val]) => ({ t: p, val })),
+    ...(d.tips ? [{ t: 'Gorjetas / Bônus', val: d.tips }] : [])
+  ] : [];
+  const jornada = d ? [d.km ? num(d.km, 0) + ' km' : '', d.hours ? num(d.hours, 1) + ' h online' : '', d.trips ? d.trips + ' corridas' : ''].filter(Boolean).join(' · ') : '';
+  v.innerHTML = `
+    <div class="page-head">
+      <button class="back" onclick="go(detailFrom)">‹</button>
+      <div style="flex:1"><h3>Lançamentos do dia</h3><div class="sub">${fmtDateLong(iso)}${isWorkDay(iso) ? '' : ' · folga'}</div></div>
+      <button class="icon-btn" onclick="openDay(addDays(detailDate,-1),detailFrom)">‹</button>
+      <button class="icon-btn" onclick="if(addDays(detailDate,1)<=todayISO())openDay(addDays(detailDate,1),detailFrom)">›</button>
+    </div>
+
+    <div class="card hero">
+      <div class="grid3">
+        <div class="stat"><div class="lbl">Bruto</div><div class="val">${money(info.gross)}</div></div>
+        <div class="stat"><div class="lbl">Gastos</div><div class="val red">${money(info.exp)}</div></div>
+        <div class="stat"><div class="lbl">Líquido</div><div class="val ${info.net >= 0 ? 'green' : 'red'}">${money(info.net)}</div></div>
+      </div>
+      ${d && d.km && info.gross ? `<div class="hint">${money(info.gross / d.km)} por km${d.hours ? ' · ' + money(info.net / d.hours) + ' líquido/h' : ''}${d.trips ? ' · ticket médio ' + money(info.gross / d.trips) : ''}</div>` : ''}
+    </div>
+
+    <div class="card">
+      <h2>💰 Ganhos <small class="green">${money(info.gross)}</small></h2>
+      ${incRows.map(r => `<div class="entry"><div class="ic g">💵</div><div class="bd"><div class="t">${esc(r.t)}</div></div><div class="amt green">${money(r.val)}</div></div>`).join('')}
+      ${jornada || (d && d.note) ? `<div class="entry"><div class="ic">🚗</div><div class="bd"><div class="t">Jornada</div><div class="s">${esc(jornada || '—')}${d.note ? ' · ' + esc(d.note) : ''}</div></div></div>` : ''}
+      ${!incRows.length && !jornada ? '<div class="empty">Nenhum ganho lançado neste dia.</div>' : ''}
+      <div class="row" style="margin-top:10px">
+        <button class="btn sm" style="flex:1;padding:11px" onclick="addDate=detailDate;go('add')">${d ? '✏️ Editar ganhos e jornada' : '➕ Lançar ganhos'}</button>
+        ${d ? `<button class="btn sm danger" style="padding:11px" onclick="delDayIncome()">🗑️</button>` : ''}
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>💸 Gastos <small class="red">${money(info.exps.reduce((t, e) => t + (+e.amount || 0), 0))}</small></h2>
+      ${info.exps.map(e => { const c = catOf(e.cat); return `<div class="entry"><div class="ic r">${c.ico}</div>
+        <div class="bd"><div class="t">${c.name}</div><div class="s">${esc(e.note || 'sem descrição')}</div></div>
+        <div class="amt red">${money(e.amount)}</div>
+        <div class="acts"><button class="icon-btn" onclick="editExpense('${e.id}')">✏️</button><button class="icon-btn" onclick="delExpenseDetail('${e.id}')">🗑️</button></div></div>`; }).join('')
+        || '<div class="empty">Nenhum gasto neste dia.</div>'}
+      <button class="btn sec" onclick="editExpense(null, detailDate)">➕ Adicionar gasto</button>
+    </div>
+
+    <div class="card">
+      <h2>⛽ Abastecimentos / recargas <small class="gold">${money(info.fuels.reduce((t, f) => t + (+f.total || 0), 0))}</small></h2>
+      ${info.fuels.map(f => { const t = FUEL_TYPES[f.type]; return `<div class="entry"><div class="ic y">${f.type === 'eletrico' ? '🔌' : '⛽'}</div>
+        <div class="bd"><div class="t">${t.name}${f.full ? ' · cheio' : ''}</div><div class="s">${num(f.qty, 2)} ${t.unit} × ${money(f.qty ? f.total / f.qty : 0)}${f.odo ? ' · ' + num(f.odo, 0) + ' km' : ''}${f.place ? ' · ' + esc(f.place) : ''}</div></div>
+        <div class="amt">${money(f.total)}</div>
+        <div class="acts"><button class="icon-btn" onclick="editFuel('${f.id}')">✏️</button><button class="icon-btn" onclick="delFuel('${f.id}')">🗑️</button></div></div>`; }).join('')
+        || '<div class="empty">Nenhum abastecimento neste dia.</div>'}
+      <button class="btn sec" onclick="editFuel(null, detailDate)">➕ Adicionar abastecimento</button>
+    </div>`;
+}
+function delDayIncome() {
+  if (!confirm('Excluir os ganhos e a jornada deste dia? Os gastos continuam.')) return;
+  delete DB.days[detailDate]; save(); toast('Ganhos excluídos'); render();
+}
+function delExpenseDetail(id) {
+  if (!confirm('Excluir este gasto?')) return;
+  DB.expenses = DB.expenses.filter(e => e.id !== id); save(); render();
+}
+function editExpense(id, date) {
+  const e = id ? DB.expenses.find(x => x.id === id) : { date: date || todayISO(), cat: 'alimentacao', amount: 0, note: '' };
+  if (!e) return;
+  openModal(id ? 'Editar gasto' : 'Novo gasto', `
+    <div class="inline-inputs">
+      <div><label>Data</label><input type="date" id="eD" value="${e.date}" max="${todayISO()}"></div>
+      <div><label>Valor</label><input inputmode="decimal" id="eV" value="${inputVal(e.amount)}" placeholder="R$ 0,00"></div>
+    </div>
+    <label>Categoria</label><select id="eC">${EXPENSE_CATS.map(c => `<option value="${c.id}" ${c.id === e.cat ? 'selected' : ''}>${c.ico} ${c.name}</option>`).join('')}</select>
+    <label>Descrição</label><input id="eN" value="${esc(e.note)}" placeholder="Opcional">
+    <button class="btn" id="eS">Salvar</button>`, b => {
+    $('#eS', b).onclick = () => {
+      const amount = parseNum($('#eV').value);
+      if (amount <= 0) { toast('Informe o valor'); return; }
+      const obj = { date: $('#eD').value || e.date, cat: $('#eC').value, amount, note: $('#eN').value.trim() };
+      if (id) Object.assign(e, obj); else DB.expenses.push({ id: uid(), ...obj });
+      save(); closeModal(); toast('Gasto salvo ✅'); render();
+    };
+  });
+}
+function editFuel(id, date) {
+  const f = id ? DB.fuel.find(x => x.id === id) : { date: date || todayISO(), type: DB.settings.vehicle === 'eletrico' ? 'eletrico' : DB.settings.fuelDefault, qty: 0, total: 0, odo: 0, full: true, place: '' };
+  if (!f) return;
+  openModal(id ? 'Editar abastecimento' : 'Novo abastecimento', `
+    <div class="inline-inputs">
+      <div><label>Data</label><input type="date" id="gD" value="${f.date}" max="${todayISO()}"></div>
+      <div><label>Tipo</label><select id="gT">${Object.entries(FUEL_TYPES).map(([k, t]) => `<option value="${k}" ${k === f.type ? 'selected' : ''}>${t.name}</option>`).join('')}</select></div>
+      <div><label>Quantidade</label><input inputmode="decimal" id="gQ" value="${inputVal(f.qty)}"></div>
+      <div><label>Valor total</label><input inputmode="decimal" id="gV" value="${inputVal(f.total)}"></div>
+      <div><label>Hodômetro</label><input inputmode="numeric" id="gO" value="${f.odo || ''}"></div>
+      <div><label>Local</label><input id="gP" value="${esc(f.place)}"></div>
+    </div>
+    <label style="display:flex;align-items:center;margin-top:12px"><input type="checkbox" id="gF" ${f.full ? 'checked' : ''}> Tanque cheio / carga completa</label>
+    <button class="btn" id="gS">Salvar</button>`, b => {
+    $('#gS', b).onclick = () => {
+      const total = parseNum($('#gV').value);
+      if (!total) { toast('Informe o valor'); return; }
+      const odo = parseNum($('#gO').value);
+      const obj = { date: $('#gD').value || f.date, type: $('#gT').value, qty: parseNum($('#gQ').value), total, odo, full: $('#gF').checked, place: $('#gP').value.trim() };
+      if (id) Object.assign(f, obj); else DB.fuel.push({ id: uid(), ...obj });
+      if (odo > (+DB.settings.odometer || 0)) DB.settings.odometer = odo;
+      save(); closeModal(); toast('Abastecimento salvo ⛽'); render();
+    };
+  });
 }
 
 /* ---------- início ---------- */
